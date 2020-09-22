@@ -168,6 +168,10 @@ create_amkey() {
         { logger "Error: ${AMANDAHOMEDIR}/.am_passphrase is missing, can't create amcrypt key."; return 1; }
 
     logger "Creating encryption key for amcrypt"
+    if [ ! -f ${AMANDAHOMEDIR}/.gnupg/am_key.gpg ]; then
+        # TODO: don't write this stuff to disk!
+        get_random_lines 65 >${AMANDAHOMEDIR}/.gnupg/am_key || return 1
+    fi
     [ -f ${GNUPGHOME}/am_key.gpg -a -s ${GNUPGHOME}/am_key.gpg ] &&
         { logger "Info: Encryption key '${GNUPGHOME}/am_key.gpg' already exists."; return 0; }
 
