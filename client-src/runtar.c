@@ -211,7 +211,9 @@ main(
                 good_option = 0; // not allowing arguments absent in the whitelist
             }
 		}
-	    } else if (argv[i][0] != '-') {
+	    } else if (argv[i][0] != '-' || g_str_equal(argv[i], "-")) {
+		/* argument values are accounted for here */
+		/* for --file arguemnt '-' is passed as valid argument from amgtar */
 		good_option++;
 	    }
 	}
