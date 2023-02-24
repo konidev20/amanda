@@ -65,7 +65,7 @@ main(
 {
 #ifndef ERRMSG
     char *dump_program;
-    int i;
+    int i, j;
     char *e;
     char *cmdline;
     GPtrArray *array = g_ptr_array_new();
@@ -199,6 +199,24 @@ main(
     amfree(cmdline);
 
     env = safe_env();
+    //Filter or Discard RSH Environmental variable
+    int env_count = 0;
+    for (i = 0; env[i] != NULL; i++){
+        env_count++;
+    }
+    for (i = 0; i < env_count; i++){
+        if (strncmp(env[i], "RSH=", 4) == 0){
+            // Remove RSH
+            g_free(env[i]);
+            // move array elements one step left - which are after "RSH"
+            for (j = i; j < env_count; j++){
+                env[j] = env[j + 1];
+            }
+            //decrease the variable count
+            env[env_count-1] = NULL;
+            break;
+        }
+    }
     execve(dump_program, argv, env);
     free_env(env);
 
