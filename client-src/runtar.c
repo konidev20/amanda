@@ -40,6 +40,8 @@
 #include "conffile.h"
 #include "client_util.h"
 
+static const char *whitelisted_args[] = {"--blocking-factor", "--file", "--directory", "--exclude", "--transform", "--listed-incremental", "--newer", "--exclude-from", "--files-from", NULL};
+
 int main(int argc, char **argv);
 
 int
@@ -49,6 +51,7 @@ main(
 {
 #ifdef GNUTAR
     int i;
+    char **j;
     char *e;
     char *dbf;
     char *cmdline;
@@ -191,8 +194,23 @@ main(
 		g_str_has_prefix(argv[i],"--newer") ||
 		g_str_has_prefix(argv[i],"--exclude-from") ||
 		g_str_has_prefix(argv[i],"--files-from")) {
-		/* Accept theses options with the following argument */
-		good_option += 2;
+		if (strchr(argv[i], '=')) {
+		    good_option++;
+		} else {
+		    /* Accept theses options with the following argument */
+		    good_option += 2;
+
+            /* Whitelisting only the allowed arguments*/
+            for(j=whitelisted_args; *j; j++) {
+                if (strcmp(argv[i], *j) == 0) {
+                    break;
+                }
+            }
+
+            if (!*j) {
+                good_option = 0; // not allowing arguments absent in the whitelist
+            }
+		}
 	    } else if (argv[i][0] != '-') {
 		good_option++;
 	    }
@@ -223,6 +241,7 @@ main(
     env = safe_env();
     execve(my_realpath, new_argv, env);
     free_env(env);
+    free_env(new_argv);
 
     e = strerror(errno);
     dbreopen(dbf, "more");
