@@ -121,3 +121,15 @@ Francis Galiegue <fgaliegue@gmail.com>
 
 Chapman Flack <chap@anastigmatix.net>
     Contributions made under BSD license
+
+Chris Hassell <chris.hassell@betsol.com>
+    3.5 branch maintenance, Debian packaging, various bug fixes
+    Contributions made under GPLv2
+
+Daniel T. Chen <crimsun@ubuntu.com>
+    Debian packaging, linking fixes
+    Contributions made under GPLv2
+
+Amanda Community Contributors
+    3.5/3.6 consolidation effort
+    Contributions made under GPLv2 or UMD BSD license
