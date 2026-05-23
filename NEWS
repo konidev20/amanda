@@ -1,3 +1,24 @@
+Changes in release 3.6.0 (Consolidated)
+
+   *** CONSOLIDATION RELEASE ***
+
+   The Amanda 3.5 and 3.6 development branches have been consolidated
+   into a single release. This release combines the advanced features
+   from the 3.6 development branch with all security and stability
+   fixes from 3.5.4.
+
+   Key highlights:
+   * S3 device overhaul with improved reliability
+   * NDMP protocol improvements and stability fixes
+   * Gnulib upgraded to version 37
+   * REST API server with Unix socket support
+   * All CVE fixes from 3.5.4 integrated
+   * Better thread naming and debug output
+   * Streaming buffer minimum raised to 128K for tape devices
+   * Autolabel disabled by default for safety
+
+   See CHANGELOG.md for a complete list of changes.
+
 Changes in release 3.5.2
 
    * amstatus
