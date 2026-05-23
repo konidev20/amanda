@@ -457,7 +457,9 @@ holding_dir_stop_if_pid_fn(
 	return take_holding_pid(hdir, getppid());
     } else {
 	char *pid_file = g_strconcat(hdir, "/pid", NULL);
-	return can_take_holding(pid_file, 0);
+	int ret = can_take_holding(pid_file, 0);
+	g_free(pid_file);
+	return ret;
     }
 }
 
@@ -770,6 +772,7 @@ holding_cleanup_dir(
     /* Do not cleanup if not from us and their amdump is still running */
     pid_file = g_strconcat(fqpath, "/pid", NULL);
     if (!can_take_holding(pid_file, 1)) {
+	g_free(pid_file);
 	return 0;
     }
     g_free(pid_file);
@@ -1054,13 +1057,25 @@ mkholdingdir(
 	}
     }
 
-    /* create a 'pid' file */
+    /* create or verify a 'pid' file */
     pid_file = g_strconcat(diskdir, "/pid", NULL);
     pid_FILE = fopen(pid_file, "wx");
     if (!pid_FILE) {
-	log_add(L_WARNING, _("WARNING: Can't create '%s': %s"),
-		pid_file, strerror(errno));
-	success = 0;
+	if (errno == EEXIST) {
+	    /* pid file already exists — check if we own it or it's stale */
+	    int ownership = can_take_holding(pid_file, 0);
+	    if (ownership == 0) {
+		/* another live process owns it — treat as failure */
+		log_add(L_WARNING, _("WARNING: holding directory '%s' is in use by another process"),
+			diskdir);
+		success = 0;
+	    }
+	    /* ownership == 1 (dead/stale) or 2 (already ours) — proceed */
+	} else {
+	    log_add(L_WARNING, _("WARNING: Can't create '%s': %s"),
+		    pid_file, strerror(errno));
+	    success = 0;
+	}
     } else {
 	fprintf(pid_FILE, "%d", (int)getpid());
 	fclose(pid_FILE);
@@ -1071,9 +1086,10 @@ mkholdingdir(
 }
 
 /*
- * return  0 - can't take
- *         1 - can take
+ * return  0 - can't take (another live process owns it)
+ *         1 - can take (no owner or dead owner)
  *         2 - already own
+ *        -1 - error reading pid file
  */
 static int can_take_holding(
     char *pid_file,
@@ -1083,28 +1099,39 @@ static int can_take_holding(
     int result = 1;
 
     pid_FILE = fopen(pid_file, "r");
-    if (pid_FILE) {
-	char line[1000];
-	int  pid;
-	if (fgets(line, 1000, pid_FILE) != NULL) {
-	    pid = atoi(line);
-	    if (pid != getpid() && pid != getppid()) {
-		/* check if pid is alive */
-		if (kill(pid, 0) != -1) {
-		    result = 0;
-		}
-		// remove pid file of dead process
-		unlink(pid_file);
-	    } else {
-		if (remove) {
-		    // remove my own pid file
-		    unlink(pid_file);
-		} else {
-		    result = 2;
-		}
-	    }
-	}
+    if (!pid_FILE) {
+	/* no pid file means no one owns it */
+	return 1;
+    }
+
+    char line[1000];
+    if (fgets(line, 1000, pid_FILE) == NULL) {
+	/* empty or unreadable pid file — treat as no owner */
 	fclose(pid_FILE);
+	return 1;
+    }
+    fclose(pid_FILE);
+
+    int pid = atoi(line);
+    if (pid <= 0) {
+	/* malformed pid — treat as no owner */
+	unlink(pid_file);
+	return 1;
+    }
+
+    if (pid == getpid() || pid == getppid()) {
+	/* we own it */
+	if (remove) {
+	    unlink(pid_file);
+	} else {
+	    result = 2;
+	}
+    } else if (kill(pid, 0) == 0) {
+	/* another live process owns it — do NOT remove its pid file */
+	result = 0;
+    } else {
+	/* dead process — safe to remove */
+	unlink(pid_file);
     }
 
     return result;
@@ -1127,12 +1154,22 @@ take_holding_pid(
 	g_free(pid_file);
 	return 0;
     } else if (result == 2) {
+	g_free(pid_file);
 	return 1;
     }
 
-    /* create a 'pid' file */
+    /* create a 'pid' file — use O_EXCL to detect races */
     pid_FILE = fopen(pid_file, "wx");
     if (!pid_FILE) {
+	if (errno == EEXIST) {
+	    /* someone else took it between our check and create —
+	     * re-check ownership via the protocol */
+	    result = can_take_holding(pid_file, 0);
+	    if (result == 2) {
+		g_free(pid_file);
+		return 1;
+	    }
+	}
 	log_add(L_WARNING, _("WARNING: Can't create '%s': %s"),
 		pid_file, strerror(errno));
 	result = 0;
