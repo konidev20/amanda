@@ -194,19 +194,10 @@ main(
 		} else {
 		    /* Accept theses options with the following argument */
 		    good_option += 2;
-
-            /* Whitelisting only the allowed arguments*/
-            for(j=whitelisted_args; *j; j++) {
-                if (strcmp(argv[i], *j) == 0) {
-                    break;
-                }
-            }
-
-            if (!*j) {
-                good_option = 0; // not allowing arguments absent in the whitelist
-            }
 		}
-	    } else if (argv[i][0] != '-') {
+	    } else if (argv[i][0] != '-' || g_str_equal(argv[i], "-")) {
+		/* argument values are accounted for here */
+		/* for --file argument '-' is passed as valid argument from amgtar */
 		good_option++;
 	    }
 	}
@@ -254,18 +245,16 @@ bool
 check_whitelist(
     gchar* option)
 {
-    bool result = TRUE;
     char** i;
 
     for(i=whitelisted_args; *i; i++) {
-        if (g_str_has_prefix(option, *i)) {
-            break;
-        }
+	/* match exact option (e.g. "--file") or option=value (e.g. "--file=foo") */
+	size_t len = strlen(*i);
+	if (strncmp(option, *i, len) == 0 &&
+	    (option[len] == '\0' || option[len] == '=')) {
+	    return TRUE;
+	}
     }
 
-    if (!*i) {
-        result = FALSE; // not allowing arguments absent in the whitelist
-    }
-
-    return result;
+    return FALSE;
 }
